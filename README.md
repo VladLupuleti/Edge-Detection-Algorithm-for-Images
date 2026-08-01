@@ -1,22 +1,63 @@
-# Edge-Detection-Algorithm-for-Images
-În funcția main, citim comenzi până când trebuie să afișăm un mesaj de eroare, până când am îndeplinit toate sarcinile programului sau întâlnim comanda exit.
+# Marching Squares
 
-Odată ce ajungem la o comandă de tip read, verificăm dacă ceea ce urmează după aceasta respectă formatul cerut de problemă. În caz contrar, afișăm mesajele de eroare corespunzătoare. Reținem câte o matrice pentru fiecare culoare: roșu, verde și albastru.
+Contour detection for PPM images, written in C.
 
-După ce am citit matricile, citim următoarele comenzi și acționăm asupra matricelor până întâlnim un nou read. Pentru fiecare comandă, am creat funcții specifice care implementează operațiile necesare.
+Marching Squares is the algorithm behind contour maps, terrain outlines and the
+boundaries you see drawn around regions on a heatmap. It is the two-dimensional
+version of Marching Cubes. I implemented it from scratch, including the image
+parsing, the sample grid, all sixteen cell patterns and the drawing.
 
-Dacă ajungem la un nou read, ștergem matricile existente și reluăm procesul descris anterior.
+## How the algorithm works
 
-Pentru comanda resize, am creat o funcție care returnează o matrice cu dimensiunea nouă. Fiecărui element din matricile inițiale îi corespunde o submatrice de dimensiune 4x4 în matricea nouă.
+The idea is to find the boundary between "inside" and "outside" without ever
+tracing it directly. Instead you look at the image four points at a time and
+decide, locally, what the boundary must look like there.
 
-Pentru comanda grid, am creat o funcție care returnează matricea corespunzătoare comenzii. Calculăm mai întâi, într-o matrice numită media, media aritmetică a pixelilor pentru fiecare culoare. Apoi, pe baza acestei matrice, determinăm valoarea fiecărui nod și o reținem în structura Grid.
+**First, upscale.** Each pixel in the source becomes a 4×4 block. Without this
+the contour has nowhere to be drawn, since it needs space between the original
+pixels.
 
-Pentru această comandă, am creat și o funcție separată pentru afișare, deoarece în comanda march avem nevoie de structura Grid fără afișare.
+**Then build a grid.** For every node in the grid, take the average brightness
+of the pixels around it and compare it to a threshold. That gives a lattice
+where each node is simply on or off.
 
-Pentru comanda init_contur, calculăm fiecare matrice corespunzătoare celor 16 cazuri posibile. În funcție de numărul de pixeli aprinși sau stinși din matrici, separăm rezolvarea în două cazuri și construim matricile pentru fiecare dintre cele 16 modele (patternuri).
+**Classify each cell.** Take any four neighbouring nodes forming a square. Each
+one is on or off, so there are 2⁴ = 16 possible arrangements. Every one of
+those sixteen corresponds to a fixed pattern of line segments cutting through
+that cell: a corner, a diagonal, a straight line across, or nothing at all.
 
-Pentru comanda march, apelăm mai întâi funcția Grid, după care utilizăm funcția init_contur și reținem în matricile noastre valorile returnate de aceasta, la pozițiile destinate.
+**March.** Walk over every cell, work out which of the sixteen cases it is, and
+draw that pattern. Because neighbouring cells share corners, the segments line
+up and join into continuous contours across the whole image. Nothing ever
+tracks the shape globally. It emerges from the local decisions.
 
-Pentru comanda write, afișăm pur și simplu matricile corespunzătoare fiecărei culori.
+The sixteen patterns are built once at the start and stored, so the marching
+step is just a lookup rather than working them out each time.
 
-La întâlnirea comenzii exit, afișăm mesajul corespunzător, eliberăm memoria alocată pentru matrici și închidem programul.
+## Using it
+
+Commands are read one per line: read an image, resize it, build the grid, march,
+write the result, exit. Reading a new image clears whatever was loaded before.
+Invalid commands print an error and leave the current image untouched.
+
+## Notes on how it works
+
+The three colour channels are stored as three separate matrices rather than one
+interleaved array. It makes the per-channel code simpler to follow, though it
+does mean three allocations instead of one.
+
+Grid nodes take the average of a block of pixels rather than a single sample.
+Using one pixel makes the contours noisy, turning small variations in
+brightness into stray fragments that do not connect to anything.
+
+The sixteen cases are not written out one by one. They are generated at start-up
+and grouped by how many corners are on, which cuts the amount of code roughly
+in half.
+
+Building the grid and printing it are separate functions, because marching needs
+the grid but not the output.
+
+## About
+
+Written for a systems programming course at Politehnica University of
+Bucharest, in first year.
